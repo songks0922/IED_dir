@@ -8,8 +8,8 @@
 #define _DUTY_NEU 1476 // servo neutral position (90 degree)
 #define _DUTY_MAX 2399 // servo full counterclockwise position (180 degree)
 
-#define _POS_START (_DUTY_MIN + 100)
-#define _POS_END (_DUTY_MAX - 100)
+#define _POS_START (1180)
+#define _POS_END (1830)
 
 #define _SERVO_SPEED 60 // servo speed limit (unit: degree/second)
 #define INTERVAL 20  // servo update interval
@@ -26,7 +26,8 @@ void setup() {
 // initialize GPIO pins
   myservo.attach(PIN_SERVO); 
   duty_target = duty_curr = _POS_START;
-  myservo.writeMicroseconds(duty_curr);
+//  myservo.writeMicroseconds(duty_curr);
+//  myservo.writeMicroseconds(_DUTY_NEU);
   
 // initialize serial port
   Serial.begin(2000000);
@@ -65,8 +66,9 @@ void loop() {
 
 // update servo position
   myservo.writeMicroseconds(duty_curr);
-
+//  myservo.writeMicroseconds(1920);
 // output the read value to the serial port
+  Serial.print(myservo.read());
   Serial.print("Min:1000,duty_target:");
   Serial.print(duty_target);
   Serial.print(",duty_curr:");
