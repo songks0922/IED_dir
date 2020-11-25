@@ -23,7 +23,7 @@ int toggle_interval, toggle_interval_cnt;
 float pause_time; // unit: sec
 
 //추헌준 도전과제 참고코드
-const float coE[] = {-0.0000022, 0.0011631, 0.9369353, 20.9865341};
+const float coE[] = {-0.0000095, 0.0056762, 0.0855494, 68.9527052};
 //
 
 int duty_target, duty_curr;
@@ -65,7 +65,7 @@ void loop() {
   
   //추헌준 도전과제 참고 코드
   float x = ir_distance();
-  raw_dist= coE[0] * pow(x, 3) + coE[1] * pow(x, 2) + coE[2] * x + coE[3];
+//  raw_dist= coE[0] * pow(x, 3) + coE[1] * pow(x, 2) + coE[2] * x + coE[3];
   //
   dist_ema = (1-alpha) * dist_ema + alpha * raw_dist;
   
