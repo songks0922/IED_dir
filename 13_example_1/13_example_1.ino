@@ -1,7 +1,7 @@
 #include <Servo.h>
 
 // Arduino pin assignment
-#define PIN_SERVO 10
+#define PIN_SERVO 11
 
 // configurable parameters
 #define _DUTY_MIN 553 // servo full clockwise position (0 degree)
@@ -65,7 +65,7 @@ void loop() {
   }
 
 // update servo position
-  myservo.writeMicroseconds(duty_curr);
+  myservo.writeMicroseconds(1450);
 //  myservo.writeMicroseconds(1920);
 // output the read value to the serial port
   Serial.print(myservo.read());

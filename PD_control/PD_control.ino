@@ -24,15 +24,16 @@
 
 // Servo speed control
 #define _SERVO_ANGLE 30        // [3131] servo 각도 설정
-#define _SERVO_SPEED 180        // [3141] servo 속도 설정
+#define _SERVO_SPEED 500        // [3141] servo 속도 설정
 
 // Event periods
 #define _INTERVAL_DIST 20 
 #define _INTERVAL_SERVO 20
-#define _INTERVAL_SERIAL 100
+#define _INTERVAL_SERIAL 50
 
 // PID parameters
-#define _KP 0.2
+#define _KP 2
+#define _KD 45
 
 #define DELAY_MICROS  1500 
 
@@ -45,7 +46,7 @@ Servo myservo;
 
 // Distance sensor
 float dist_target; // location to send the ball
-float dist_cail, dist_ema = 0;
+float dist_cail, dist_ema = 0, rail_dist_ema = 0;
 
 float filtered_dist;       // 최종 측정된 거리값을 넣을 변수. loop()안에 filtered_dist = filtered_ir_distance(); 형태로 사용하면 됨.
 float samples_num = 3; 
@@ -55,7 +56,7 @@ unsigned long last_sampling_time_dist, last_sampling_time_servo, last_sampling_t
 bool event_dist, event_servo, event_serial;
 
 //추헌준 도전과제 참고코드
-const float coE[] = {-0.0000114, 0.0066235, -0.0041811, 72.6701333};
+const float coE[] = {-0.0000015, 0.0007947, 0.8326809, 42.5569449};
 //
 
 // Servo speed control
@@ -97,9 +98,6 @@ float filtered_ir_distance(void){
 }
 //===================================================
 
-float control_to_ms(float c){
-  return _DUTY_NEU - (200/17 * c - 200/17);
-}
 
 void setup() {
 // initialize GPIO pins for LED and attach servo 
@@ -149,18 +147,22 @@ void loop() {
 ////////////////////
 
   if(event_dist) {
-      event_dist = false; // [3133]
+    event_dist = false; // [3133]
   // get a distance reading from the distance sensor
-      dist_raw = ir_distance();
-      filtered_dist = filtered_ir_distance();
-      dist_cail = coE[0] * pow(filtered_dist, 3) + coE[1] * pow(filtered_dist, 2) + coE[2] * filtered_dist + coE[3];
+    dist_raw = ir_distance();
+    filtered_dist = filtered_ir_distance();
+    dist_cail = coE[0] * pow(filtered_dist, 3) + coE[1] * pow(filtered_dist, 2) + coE[2] * filtered_dist + coE[3];
+    rail_dist_ema = _DIST_ALPHA*dist_cail + (1-_DIST_ALPHA)*rail_dist_ema;
   // PID control logic
-    error_curr = _DIST_TARGET - dist_cail;
+    error_curr = _DIST_TARGET - rail_dist_ema;
     pterm = error_curr * _KP;
-    control = pterm;
+    dterm = _KD * (error_curr - error_prev);
+    control = pterm + dterm;
 
   // duty_target = f(duty_neutral, control)
-    duty_target = control_to_ms(control);
+    duty_target = _DUTY_NEU + control;
+
+    error_prev = error_curr;
 
   // [3133] keep duty_target value within the range of [_DUTY_MIN, _DUTY_MAX]
     if (duty_target > _DUTY_MAX) duty_target = _DUTY_MAX;
@@ -191,9 +193,11 @@ void loop() {
   if(event_serial) {
     event_serial = false; // [3133]
     Serial.print("dist_ir:");
-    Serial.print(dist_cail);
+    Serial.print(rail_dist_ema);
     Serial.print(",pterm:");
     Serial.print(map(pterm,-1000,1000,510,610));
+    Serial.print(",dterm:");
+    Serial.print(map(dterm,-1000,1000,510,610));
     Serial.print(",duty_target:");
     Serial.print(map(duty_target,1000,2000,410,510));
     Serial.print(",duty_curr:");

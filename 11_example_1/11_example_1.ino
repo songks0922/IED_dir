@@ -2,7 +2,7 @@
 
 // Arduino pin assignment
 #define PIN_LED 9
-#define PIN_SERVO 10
+#define PIN_SERVO 11
 #define PIN_TRIG 12
 #define PIN_ECHO 13
 
