@@ -18,9 +18,9 @@
 #define _DIST_ALPHA 0.34   // [1628] ema 필터의 측정 보정치
 
 // Servo range
-#define _DUTY_MIN 1050  //[0028] servo duty값 최소를 1000으로 고정 
+#define _DUTY_MIN 1250  //[0028] servo duty값 최소를 1000으로 고정 
 #define _DUTY_NEU 1450        
-#define _DUTY_MAX 1850  //[3145] servo duty값 최대를 2000으로 고정
+#define _DUTY_MAX 1750  //[3145] servo duty값 최대를 2000으로 고정
 
 // Servo speed control
 #define _SERVO_ANGLE 30        // [3131] servo 각도 설정
@@ -33,7 +33,7 @@
 
 // PID parameters
 #define _KP 2
-#define _KD 45
+#define _KD 58
 
 #define DELAY_MICROS  1500 
 
