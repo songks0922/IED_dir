@@ -20,7 +20,8 @@
 // Servo range
 #define _DUTY_MIN 1250  //[0028] servo duty값 최소를 1000으로 고정 
 #define _DUTY_NEU 1450        
-#define _DUTY_MAX 1750  //[3145] servo duty값 최대를 2000으로 고정
+#define _DUTY_MAX 1850  //[3145] servo duty값 최대를 2000으로 고정
+#define _RAMPUP_TIME 50 // servo speed rampup (0 to max) time (unit: ms)
 
 // Servo speed control
 #define _SERVO_ANGLE 30        // [3131] servo 각도 설정
@@ -32,8 +33,9 @@
 #define _INTERVAL_SERIAL 100
 
 // PID parameters
-#define _KP 2
-#define _KD 58
+#define _KP 1.8
+#define _KD 60
+#define _KI 0.015
 
 #define DELAY_MICROS  1500 
 
@@ -47,6 +49,8 @@ Servo myservo;
 // Distance sensor
 float dist_target; // location to send the ball
 float dist_cail, dist_ema = 0, rail_dist_ema = 0;
+int duty_chg_max; // maximum speed, i.e., duty difference per interval (unit: us/interval)
+int duty_chg_adjust; // duty accelration per interval during ramp up/down period (unit: us/interval^2)
 
 float filtered_dist;       // 최종 측정된 거리값을 넣을 변수. loop()안에 filtered_dist = filtered_ir_distance(); 형태로 사용하면 됨.
 float samples_num = 3; 
@@ -62,7 +66,7 @@ const float coE[] = {-0.0000015, 0.0007947, 0.8326809, 42.5569449};
 // Servo speed control
 int duty_chg_per_interval; 
 int duty_target, duty_curr;
-
+float pause_time; 
 // PID variables
 float error_curr, error_prev, control, pterm, dterm, iterm;
 
@@ -108,19 +112,24 @@ void setup() {
 
 // initialize global variables
   dist_min = _DIST_MIN;
-  dist_max = _DIST_MAX; 
+  dist_max = _DIST_MAX;
+  pause_time = 0.5;
+  duty_chg_max = (_DUTY_MAX - _DUTY_MIN) * ((float)_SERVO_SPEED / 180) * ((float)_INTERVAL_SERVO / 1000);
+  duty_chg_adjust = (float) duty_chg_max * _INTERVAL_SERVO / _RAMPUP_TIME;
+  duty_chg_per_interval = 0; // initial speed is set to 0.
   // [3129]
 
 // move servo to neutral position
  myservo.writeMicroseconds(_DUTY_NEU); // [3228]
  duty_curr = _DUTY_NEU;
+ dist_target = _DIST_TARGET;
 
 
 // initialize serial port
 Serial.begin(57600); //[3128] 시리얼 포트 초기화
 
 // convert angle speed into duty change per interval.
-  duty_chg_per_interval = (_DUTY_MAX - _DUTY_MIN) * ((float)_SERVO_SPEED / 180) * ((float)_INTERVAL_SERVO / 1000); //[3128]
+  //duty_chg_per_interval = (_DUTY_MAX - _DUTY_MIN) * ((float)_SERVO_SPEED / 180) * ((float)_INTERVAL_SERVO / 1000); //[3128]
   event_dist = event_serial = event_servo = false;
 }
   
@@ -157,7 +166,8 @@ void loop() {
     error_curr = _DIST_TARGET - rail_dist_ema;
     pterm = error_curr * _KP;
     dterm = _KD * (error_curr - error_prev);
-    control = pterm + dterm;
+    iterm += _KI * error_curr;
+    control = pterm + dterm + iterm;
 
   // duty_target = f(duty_neutral, control)
     duty_target = _DUTY_NEU + control;
@@ -176,12 +186,24 @@ void loop() {
     // adjust duty_curr toward duty_target by duty_chg_per_interval
 
     if(duty_target > duty_curr) {
+      if(duty_chg_per_interval < duty_chg_max) {
+        duty_chg_per_interval += duty_chg_adjust;
+        if(duty_chg_per_interval > duty_chg_max) duty_chg_per_interval = duty_chg_max;
+    }
       duty_curr += duty_chg_per_interval;
       if(duty_curr > duty_target) duty_curr = duty_target;
-    }else {
-      duty_curr -= duty_chg_per_interval;
+    }
+    else if(duty_target < duty_curr) {
+      if(duty_chg_per_interval > -duty_chg_max) {
+        duty_chg_per_interval -= duty_chg_adjust;
+        if(duty_chg_per_interval < -duty_chg_max) duty_chg_per_interval = -duty_chg_max;
+      }
+      duty_curr += duty_chg_per_interval;
       if(duty_curr < duty_target) duty_curr = duty_target;
     }
+  else {
+    duty_chg_per_interval = 0;
+  }
     
     // update servo position
     myservo.writeMicroseconds(duty_curr);
@@ -192,17 +214,21 @@ void loop() {
   
   if(event_serial) {
     event_serial = false; // [3133]
-    Serial.print("dist_ir:");
+    Serial.print("IR:");
     Serial.print(rail_dist_ema);
-    Serial.print(",pterm:");
+    Serial.print(",T:");
+    Serial.print(dist_target);
+    Serial.print(",P:");
     Serial.print(map(pterm,-1000,1000,510,610));
-    Serial.print(",dterm:");
+    Serial.print(",D:");
     Serial.print(map(dterm,-1000,1000,510,610));
-    Serial.print(",duty_target:");
+    Serial.print(",I:");
+    Serial.print(map(iterm,-1000,1000,510,610));
+    Serial.print(",DTT:");
     Serial.print(map(duty_target,1000,2000,410,510));
-    Serial.print(",duty_curr:");
+    Serial.print(",DTC:");
     Serial.print(map(duty_curr,1000,2000,410,510));
-    Serial.println(",Min:100,Low:200,dist_target:255,High:310,Max:410");
+    Serial.println(",-G:245,+G:265,m:0,M:800");
     last_sampling_time_serial = millis(); // [3133] 마지막 serial event 처리 시각 기록
 
   }
